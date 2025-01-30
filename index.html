@@ -1,87 +1,78 @@
-<!DOCTYPE html>
-<html lang="he">
-<head>
-    <meta charset="UTF-8">
-    <title>סורק ברקודים</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-            position: relative;
-        }
-        video {
-            width: 100%;
-            max-width: 400px;
-            border: 1px solid black;
-        }
-        .crosshair {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .crosshair:before, .crosshair:after {
-            content: '';
-            position: absolute;
-            background-color: red;
-        }
-        .crosshair:before {
-            width: 2px;
-            height: 50%;
-            top: 25%;
-        }
-        .crosshair:after {
-            height: 2px;
-            width: 50%;
-            left: 25%;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            position: absolute;
-            bottom: 10px;
-            width: 100%;
-            text-align: center;
-        }
-        li {
-            background: #f0f0f0;
-            margin: 5px 0;
-            padding: 10px;
-            border: 1px solid #ccc;
-        }
-    </style>
-</head>
-<body>
-    <video id="video" autoplay></video>
-    <div class="crosshair"></div>
-    <h2>תוצאות סריקה:</h2>
-    <ul id="barcode-list"></ul>
+import androidx.appcompat.app.AppCompatActivity;
+import android.os.Bundle;
+import android.util.SparseArray;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import android.widget.TextView;
+import com.google.android.gms.vision.CameraSource;
+import com.google.android.gms.vision.Detector;
+import com.google.android.gms.vision.barcode.Barcode;
+import com.google.android.gms.vision.barcode.BarcodeDetector;
+import java.io.IOException;
 
-    <script src="https://unpkg.com/@zxing/browser@latest"></script>
-    <script>
-        const codeReader = new ZXing.BrowserBarcodeReader();
-        const videoElement = document.getElementById('video');
-        const barcodeList = document.getElementById('barcode-list');
-        const scanSound = new Audio('https://www.soundjay.com/button/beep-07.wav'); // צליל סריקה
+public class MainActivity extends AppCompatActivity {
 
-        codeReader.decodeFromVideoDevice(null, videoElement, (result, err) => {
-            if (result) {
-                const listItem = document.createElement('li');
-                listItem.textContent = result.text;
-                barcodeList.appendChild(listItem);
-                scanSound.play(); // נגן את הצליל
+    SurfaceView surfaceView;
+    TextView textView;
+    CameraSource cameraSource;
+    BarcodeDetector barcodeDetector;
+    String lastResult = "";
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        surfaceView = findViewById(R.id.surface_view);
+        textView = findViewById(R.id.text_view);
+
+        barcodeDetector = new BarcodeDetector.Builder(this)
+                .setBarcodeFormats(Barcode.EAN_13) // הגדרת סוג הברקוד
+                .build();
+
+        cameraSource = new CameraSource.Builder(this, barcodeDetector)
+                .setRequestedPreviewSize(640, 480)
+                .build();
+
+        surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                try {
+                    cameraSource.start(holder);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
-            if (err && !(err instanceof ZXing.NotFoundException)) {
-                console.error(err);
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                cameraSource.stop();
             }
         });
-    </script>
-</body>
-</html>
+
+        barcodeDetector.setProcessor(new Detector.Processor<Barcode>() {
+            @Override
+            public void release() {
+            }
+
+            @Override
+            public void receiveDetections(Detector.Detections<Barcode> detections) {
+                final SparseArray<Barcode> barcodes = detections.getDetectedItems();
+
+                if (barcodes.size() > 0) {
+                    Barcode barcode = barcodes.valueAt(0);
+                    String currentResult = barcode.rawValue;
+
+                    if (!currentResult.equals(lastResult)) {
+                        lastResult = currentResult;
+                        textView.setText(lastResult);
+                    }
+                }
+            }
+        });
+    }
+}
