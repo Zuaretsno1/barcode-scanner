@@ -2,79 +2,47 @@
 <html lang="he">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>סורק ברקודים</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-        }
         video {
             width: 100%;
-            max-width: 600px;
-            height: auto;
-            border: 1px solid #ccc;
-            border-radius: 8px;
+            max-width: 400px;
+            border: 1px solid black;
         }
-        #result {
-            margin-top: 20px;
-            font-size: 1.2em;
-            color: #333;
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background: #f0f0f0;
+            margin: 5px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
         }
     </style>
 </head>
 <body>
     <h1>סורק ברקודים</h1>
     <video id="video" autoplay></video>
-    <div id="result">ממתין לסריקת ברקוד...</div>
+    <h2>תוצאות סריקה:</h2>
+    <ul id="barcode-list"></ul>
+
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
     <script>
-        const video = document.getElementById('video');
-        const result = document.getElementById('result');
+        const codeReader = new ZXing.BrowserBarcodeReader();
+        const videoElement = document.getElementById('video');
+        const barcodeList = document.getElementById('barcode-list');
 
-        // בקשת גישה למצלמה
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(err => {
-                console.error('שגיאה בגישה למצלמה:', err);
-                result.textContent = 'לא ניתן לגשת למצלמה';
-            });
-
-        // בדיקה אם ה-Barcode Detector נתמך
-        if ('BarcodeDetector' in window) {
-            const barcodeDetector = new BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'code_39', 'itf'] });
-
-            video.addEventListener('play', () => {
-                const scan = () => {
-                    barcodeDetector.detect(video)
-                        .then(barcodes => {
-                            if (barcodes.length > 0) {
-                                barcodes.forEach(barcode => {
-                                    console.log('ברקוד זוהה:', barcode.rawValue);
-                                    result.textContent = `ברקוד זוהה: ${barcode.rawValue}`;
-                                });
-                            } else {
-                                result.textContent = 'ממתין לסריקת ברקוד...';
-                            }
-                        })
-                        .catch(err => {
-                            console.error('שגיאה בזיהוי ברקוד:', err);
-                            result.textContent = 'שגיאה בזיהוי ברקוד';
-                        });
-                    requestAnimationFrame(scan);
-                };
-                scan();
-            });
-        } else {
-            console.error('Barcode Detector אינו נתמך בדפדפן זה.');
-            result.textContent = 'Barcode Detector אינו נתמך בדפדפן זה.';
-        }
+        codeReader.decodeFromVideoDevice(null, videoElement, (result, err) => {
+            if (result) {
+                const listItem = document.createElement('li');
+                listItem.textContent = result.text;
+                barcodeList.appendChild(listItem);
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+                console.error(err);
+            }
+        });
     </script>
 </body>
 </html>
